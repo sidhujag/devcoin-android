@@ -36,7 +36,6 @@ import java.util.List;
 
 import static com.google.bitcoin.core.Utils.doubleDigest;
 import static com.google.bitcoin.core.Utils.doubleDigestTwoBuffers;
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * <p>A block is a group of transactions, and is one of the fundamental data structures of the Bitcoin system.
@@ -53,7 +52,7 @@ public class Block extends Message {
     private static final long serialVersionUID = 2738848929966035281L;
 
     /** How many bytes are required to represent a block header WITHOUT the trailing 00 length byte. */
-    static public int HEADER_SIZE = 80;
+    public static final int HEADER_SIZE = 80;
 
     static final long ALLOWED_TIME_DRIFT = 2 * 60 * 60; // Same value as official client.
 
@@ -72,34 +71,31 @@ public class Block extends Message {
 
     /** A value for difficultyTarget (nBits) that allows half of all possible hash solutions. Used in unit testing. */
     public static final long EASIEST_DIFFICULTY_TARGET = 0x207fFFFFL;
-
     // Fields defined as part of the protocol format.
     private long version;
     private Sha256Hash prevBlockHash;
     private Sha256Hash merkleRoot;
-    protected long time;
-    protected long difficultyTarget; // "nBits"
+    private long time;
+    private long difficultyTarget; // "nBits"
     private long nonce;
-    private boolean lastByteNull;
+
     /** If null, it means this object holds only the headers. */
     List<Transaction> transactions;
-
+    private boolean lastByteNull;
     /** Stores the hash of the block. If null, getHash() will recalculate it. */
     private transient Sha256Hash hash;
-
-    protected transient boolean headerParsed;
+    private BlockMergeMined mmBlock;
+    private transient boolean headerParsed;
     private transient boolean transactionsParsed;
 
-    protected transient boolean headerBytesValid;
+    private transient boolean headerBytesValid;
     private transient boolean transactionBytesValid;
     
     // Blocks can be encoded in a way that will use more bytes than is optimal (due to VarInts having multiple encodings)
     // MAX_BLOCK_SIZE must be compared to the optimal encoding, not the actual encoding, so when parsing, we keep track
     // of the size of the ideal encoding in addition to the actual message size (which Message needs)
-    protected transient int optimalEncodingMessageSize;
-    private BigInteger target;
+    private transient int optimalEncodingMessageSize;
 
-    public BlockMergeMined mmBlock;
     /** Special case constructor, used for the genesis node, cloneAsHeader and unit tests. */
     Block(NetworkParameters params) {
         super(params);
@@ -108,30 +104,13 @@ public class Block extends Message {
         difficultyTarget = 0x1d07fff8L;
         time = System.currentTimeMillis() / 1000;
         prevBlockHash = Sha256Hash.ZERO_HASH;
+
         length = 80;
     }
 
     /** Constructs a block object from the Bitcoin wire format. */
     public Block(NetworkParameters params, byte[] payloadBytes) throws ProtocolException {
         super(params, payloadBytes, 0, false, false, payloadBytes.length);
-        mmBlock = new BlockMergeMined(params);
-
-    }
-    /**
-     * Contruct a block object from the Bitcoin wire format.
-     * @param params NetworkParameters object.
-     * @param parseLazy Whether to perform a full parse immediately or delay until a read is requested.
-     * @param parseRetain Whether to retain the backing byte array for quick reserialization.
-     * If true and the backing byte array is invalidated due to modification of a field then
-     * the cached bytes may be repopulated and retained if the message is serialized again in the future.
-     * @param length The length of message if known.  Usually this is provided when deserializing of the wire
-     * as the length will be provided as part of the header.  If unknown then set to Message.UNKNOWN_LENGTH
-     * @throws ProtocolException
-     */
-    public Block(NetworkParameters params, byte[] payloadBytes, boolean parseLazy, boolean parseRetain, int length, int offset)
-            throws ProtocolException {
-        super(params, payloadBytes, offset, parseLazy, parseRetain, length);
-
     }
 
     /**
@@ -145,9 +124,15 @@ public class Block extends Message {
      * as the length will be provided as part of the header.  If unknown then set to Message.UNKNOWN_LENGTH
      * @throws ProtocolException
      */
-    public Block(NetworkParameters params, byte[] payloadBytes, boolean parseLazy, boolean parseRetain, int length)
+
+    public Block(NetworkParameters params, byte[] bytes, boolean parseLazy, boolean parseRetain, int length)
             throws ProtocolException {
-        super(params, payloadBytes, 0, parseLazy, parseRetain, length);
+        super(params, bytes, 0, parseLazy, parseRetain, length);
+
+    }
+    public Block(NetworkParameters params, byte[] payloadBytes, byte[] bytes, boolean parseLazy, boolean parseRetain, int length, int cursor)
+            throws ProtocolException {
+        super(params, bytes, payloadBytes, 0, parseLazy, parseRetain, length, cursor);
 
     }
 
@@ -174,10 +159,6 @@ public class Block extends Message {
         this.nonce = nonce;
         this.transactions = new LinkedList<Transaction>();
         this.transactions.addAll(transactions);
-
-
-
-
     }
 
 
@@ -201,7 +182,7 @@ public class Block extends Message {
         hash = null;
     }
 
-    protected void parseHeader() throws ProtocolException {
+    private void parseHeader() throws ProtocolException {
         if (headerParsed)
             return;
 
@@ -210,65 +191,71 @@ public class Block extends Message {
         prevBlockHash = readHash();
         merkleRoot = readHash();
         time = readUint32();
-
         difficultyTarget = readUint32();
-
         nonce = readUint32();
 
-        hash = getHash();
-        lastByteNull = false;
+        hash = new Sha256Hash(Utils.reverseBytes(Utils.doubleDigest(bytes, offset, cursor)));
+
+
         if((version & BlockMergeMined.BLOCK_VERSION_AUXPOW) > 0)
         {
-            mmBlock = new BlockMergeMined(params, bytes, cursor, this);
-            mmBlock.setBlock(this);
-            mmBlock.parse();
+            // if the block passed in is not just the headers, but header/mminfo/transactions
+            // then payloadBytes is null so assume its in the bytes information (if bytes has more than just the header)
+            byte[] bytesforMMBlock = this.payloadBytes;
+            int mmCursor = this.payloadCursor;
+            if(bytesforMMBlock == null)
+            {
+                if(bytes != null && bytes.length > (Block.HEADER_SIZE+1))
+                {
+                    mmCursor = cursor;
+                    bytesforMMBlock = this.bytes;
+                }
+            }
+
+            mmBlock = new BlockMergeMined(params, bytesforMMBlock, mmCursor, this);
 
             // first transaction byte which should be null for header only blocks
-            if(mmBlock.IsValid() && bytes[mmBlock.getCursor()] == 0 )
+            if(mmBlock.IsValid() && bytesforMMBlock != null && bytesforMMBlock.length > (mmCursor + mmBlock.getMessageSize()) && bytesforMMBlock[mmCursor + mmBlock.getMessageSize()] == 0 )
             {
                 lastByteNull = true;
-
-
             }
         }
         else
         {
             // first transaction byte which should be null for header only blocks
-            if(bytes[cursor] == 0 )
+            // length is only set for blocks that are passed in as headers only (80 bytes)
+            if(bytes != null && bytes.length > cursor && bytes[cursor] == 0 && length == Block.HEADER_SIZE )
             {
                 lastByteNull = true;
 
 
             }
         }
-
         headerParsed = true;
         headerBytesValid = parseRetain;
     }
-    protected void setHash(Sha256Hash hash) {
-        this.hash = hash;
-    }
-    private boolean isHeader() throws ProtocolException
-    {
-        if((version & BlockMergeMined.BLOCK_VERSION_AUXPOW) > 0)
-        {
-            if(mmBlock == null)
-                throw new ProtocolException("Could not find merged mining information from block header");
-            return (getMessageSize()+offset) == (mmBlock.getCursor());
-        }
-        return (length+offset) == cursor;
-    }
-    protected void parseTransactions() throws ProtocolException {
+
+    private void parseTransactions() throws ProtocolException {
         if (transactionsParsed)
             return;
 
         cursor = offset + HEADER_SIZE;
+
+
         optimalEncodingMessageSize = HEADER_SIZE;
-        if (isHeader()) {
+        if (bytes.length == cursor || isLastByteNull()) {
             // This message is just a header, it has no transactions.
             transactionsParsed = true;
             transactionBytesValid = false;
             return;
+        }
+        if(isMMBlock())
+        {
+            cursor += getMMBlockSize();
+        }
+        if(cursor > bytes.length)
+        {
+            throw new ProtocolException("Trying to parse a block for transactions passed the end of the size of the block");
         }
 
         int numTransactions = (int) readVarInt();
@@ -288,24 +275,12 @@ public class Block extends Message {
         transactionBytesValid = parseRetain;
     }
 
-    protected void parse() throws ProtocolException {
+    void parse() throws ProtocolException {
         parseHeader();
         parseTransactions();
         length = cursor - offset;
     }
-    @Override
-    public int getMessageSize()  {
-        int len = 0;
-        if (length == UNKNOWN_LENGTH)
-            maybeParse();
-        if (length == UNKNOWN_LENGTH)
-            checkState(false, "Length field has not been set in %s after full parse.", getClass().getSimpleName());
-        int blockmsgsize = 0;
-        if(mmBlock != null)
-            blockmsgsize = mmBlock.getMessageSize();
-        return length + blockmsgsize;
-
-    }
+    
     public int getOptimalEncodingMessageSize() {
         if (optimalEncodingMessageSize != 0)
             return optimalEncodingMessageSize;
@@ -326,7 +301,7 @@ public class Block extends Message {
             parseTransactions();
             length = cursor - offset;
         } else {
-            transactionBytesValid = !transactionsParsed || parseRetain && length > HEADER_SIZE;
+            transactionBytesValid = !transactionsParsed || parseRetain && length > (HEADER_SIZE+getMMBlockSize());
         }
         headerBytesValid = !headerParsed || parseRetain && length >= HEADER_SIZE;
     }
@@ -343,13 +318,11 @@ public class Block extends Message {
      * there are some interdependencies. For example altering a tx requires invalidating the Merkle root and therefore
      * the cached header bytes.
      */
-    protected void maybeParseHeader() {
+    private void maybeParseHeader() {
         if (headerParsed || bytes == null)
             return;
         try {
             parseHeader();
-            if(mmBlock != null)
-                mmBlock.maybeParse();
             if (!(headerBytesValid || transactionBytesValid))
                 bytes = null;
         } catch (ProtocolException e) {
@@ -359,7 +332,7 @@ public class Block extends Message {
         }
     }
 
-    protected void maybeParseTransactions() {
+    private void maybeParseTransactions() {
         if (transactionsParsed || bytes == null)
             return;
         try {
@@ -447,7 +420,7 @@ public class Block extends Message {
     }
 
     // default for testing
-    protected void writeHeader(OutputStream stream) throws IOException {
+    void writeHeader(OutputStream stream) throws IOException {
         // try for cached write first
         if (headerBytesValid && bytes != null && bytes.length >= offset + HEADER_SIZE) {
             stream.write(bytes, offset, HEADER_SIZE);
@@ -463,7 +436,7 @@ public class Block extends Message {
         Utils.uint32ToByteStreamLE(nonce, stream);
     }
 
-    protected void writeTransactions(OutputStream stream) throws IOException {
+    private void writeTransactions(OutputStream stream) throws IOException {
         // check for no transaction conditions first
         // must be a more efficient way to do this but I'm tired atm.
         if (transactions == null && transactionsParsed) {
@@ -471,8 +444,8 @@ public class Block extends Message {
         }
 
         // confirmed we must have transactions either cached or as objects.
-        if (transactionBytesValid && bytes != null && bytes.length >= offset + length) {
-            stream.write(bytes, offset + HEADER_SIZE, length - HEADER_SIZE);
+        if (transactionBytesValid && bytes != null && bytes.length >= offset + length + getMMBlockSize()) {
+            stream.write(bytes, offset + HEADER_SIZE + getMMBlockSize(), length - HEADER_SIZE -  getMMBlockSize());
             return;
         }
 
@@ -576,7 +549,7 @@ public class Block extends Message {
      * Calculates the block hash by serializing the block and hashing the
      * resulting bytes.
      */
-    protected Sha256Hash calculateHash() {
+    public Sha256Hash calculateHash() {
         try {
             ByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(HEADER_SIZE);
             writeHeader(bos);
@@ -636,11 +609,6 @@ public class Block extends Message {
         block.difficultyTarget = difficultyTarget;
         block.transactions = null;
         block.hash = getHash().duplicate();
-        if(block.mmBlock != null && block.mmBlock.IsValid())
-            block.mmBlock = mmBlock.cloneAsHeader();
-        else
-            block.mmBlock = new BlockMergeMined(params);
-        block.mmBlock.setBlock(this);
         return block;
     }
 
@@ -650,12 +618,8 @@ public class Block extends Message {
      */
     @Override
     public String toString() {
-        StringBuilder s = new StringBuilder("");
-        s.append(" version: v");
+        StringBuilder s = new StringBuilder("v");
         s.append(version);
-        s.append(" hash: ");
-        s.append(getHashAsString());
-        s.append("\n");
         s.append(" block: \n");
         s.append("   previous block: ");
         s.append(getPrevBlockHash());
@@ -674,9 +638,9 @@ public class Block extends Message {
         s.append("   nonce: ");
         s.append(nonce);
         s.append("\n");
-        if(mmBlock.IsValid())
+        if(isMMBlock())
         {
-            s.append("   Merged-mine header: \n");
+            s.append("   Merged-mining info: \n");
             s.append(mmBlock.toString());
             s.append("\n");
         }
@@ -716,7 +680,7 @@ public class Block extends Message {
      * target is represented using a compact form. If this form decodes to a value that is out of bounds, an exception
      * is thrown.
      */
-    protected BigInteger getDifficultyTargetAsInteger() throws VerificationException {
+    public BigInteger getDifficultyTargetAsInteger() throws VerificationException {
         maybeParseHeader();
         BigInteger target = Utils.decodeCompactBits(difficultyTarget);
         if (target.compareTo(BigInteger.ZERO) <= 0 || target.compareTo(params.proofOfWorkLimit) > 0)
@@ -767,11 +731,8 @@ public class Block extends Message {
         }
         return true;
     }
-    public boolean isLastByteNull()
-    {
-        return lastByteNull;
-    }
-    protected void checkTimestamp() throws VerificationException {
+
+    private void checkTimestamp() throws VerificationException {
         maybeParseHeader();
         // Allow injection of a fake clock to allow unit testing.
         long currentTime = Utils.now().getTime()/1000;
@@ -878,8 +839,6 @@ public class Block extends Message {
      * @throws VerificationException
      */
     public void verifyHeader() throws VerificationException {
-
-
         // Prove that this block is OK. It might seem that we can just ignore most of these checks given that the
         // network is also verifying the blocks, but we cannot as it'd open us to a variety of obscure attacks.
         //
@@ -995,7 +954,7 @@ public class Block extends Message {
     void setPrevBlockHash(Sha256Hash prevBlockHash) {
         unCacheHeader();
         this.prevBlockHash = prevBlockHash;
-        setHash(null);
+        this.hash = null;
     }
 
     /**
@@ -1017,7 +976,7 @@ public class Block extends Message {
     public void setTime(long time) {
         unCacheHeader();
         this.time = time;
-        setHash(null);
+        this.hash = null;
     }
 
     /**
@@ -1038,7 +997,7 @@ public class Block extends Message {
     public void setDifficultyTarget(long compactForm) {
         unCacheHeader();
         this.difficultyTarget = compactForm;
-        setHash(null);
+        this.hash = null;
     }
 
     /**
@@ -1054,7 +1013,7 @@ public class Block extends Message {
     public void setNonce(long nonce) {
         unCacheHeader();
         this.nonce = nonce;
-        setHash(null);
+        this.hash = null;
     }
 
     /** Returns an immutable list of transactions held in this block. */
@@ -1169,7 +1128,6 @@ public class Block extends Message {
     Block createNextBlockWithCoinbase(byte[] pubKey) {
         return createNextBlock(null, null, Utils.now().getTime() / 1000, pubKey, Utils.toNanoCoins(50, 0));
     }
-
     /**
      * Used for unit test
      *
@@ -1196,7 +1154,18 @@ public class Block extends Message {
     boolean isHeaderBytesValid() {
         return headerBytesValid;
     }
-
+    boolean isMMBlock(){
+        maybeParseHeader();
+        return ((version & BlockMergeMined.BLOCK_VERSION_AUXPOW) > 0) && mmBlock.IsValid();
+    }
+    int getMMBlockSize()
+    {
+        if(mmBlock != null)
+        {
+            return mmBlock.getMessageSize();
+        }
+        return 0;
+    }
     /**
      * Used for unit test
      *
@@ -1204,6 +1173,10 @@ public class Block extends Message {
      */
     boolean isTransactionBytesValid() {
         return transactionBytesValid;
+    }
+    public boolean isLastByteNull()
+    {
+        return lastByteNull;
     }
 
 }

@@ -34,7 +34,7 @@ public class FilteredBlock extends Message {
     private List<Sha256Hash> cachedTransactionHashes = null;
     
     // A set of transactions whose hashes are a subset of getTransactionHashes()
-    // These were relayed as a part of the filteredblock getdata, ie likely weren't previously received as loose transactions
+    // These were relayed as a part of the filteredblock getdata, ie 6likely weren't previously received as loose transactions
     private Map<Sha256Hash, Transaction> associatedTransactions = new HashMap<Sha256Hash, Transaction>();
     
     public FilteredBlock(NetworkParameters params, byte[] payloadBytes) throws ProtocolException {

@@ -19,7 +19,6 @@ package com.google.bitcoin.core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
@@ -54,7 +53,7 @@ public class BlockMergeMined {
     private NetworkParameters params;
     public Block block;
     public BlockMergeMinedPayload payload;
-
+    private int cursor;
     /** Stores the hash of the block. If null, getHash() will recalculate it. */
     private transient Sha256Hash hash;
 
@@ -62,14 +61,29 @@ public class BlockMergeMined {
     {
         payload = null;
         params = netparams;
+        cursor = 0;
+        headerParsed = false;
+        setBlock(null);
     }
     /** Constructs a block object from the Bitcoin wire format. */
     public BlockMergeMined(NetworkParameters netparams, byte[] payloadBytes, int cursor, Block block) throws ProtocolException {
+        headerParsed = false;
+        this.cursor = cursor;
         params = netparams;
         payload = new BlockMergeMinedPayload(this.params, payloadBytes, cursor, block);
-
+        setBlock(block);
+        headerParsed = true;
     }
-    public void setBlock(Block block)
+    /** Constructs a block object from the Bitcoin wire format. */
+    public BlockMergeMined(NetworkParameters netparams,BlockMergeMinedPayload payload, int cursor, Block block) throws ProtocolException {
+        headerParsed = false;
+        this.cursor = cursor;
+        params = netparams;
+        this.payload = payload.cloneAsHeader();
+        setBlock(block);
+        headerParsed = true;
+    }
+    private void setBlock(Block block)
     {
         this.block = block;
         if(this.payload != null && this.payload.block == null)
@@ -85,18 +99,16 @@ public class BlockMergeMined {
     }
     public boolean IsValid()
     {
-        return payload != null && payload.bytes.length > 0 && headerParsed;
+        return payload != null && payload.IsValid() && headerParsed;
     }
     private void parseHeader() throws ProtocolException {
-        if (this.headerParsed || payload == null || payload.bytes == null)
-            return;
+        headerParsed = false;
         payload.parse();
-        if(payload.bytes.length > 0)
-            headerParsed = true;
+        headerParsed = true;
     }
 
     protected void parse() throws ProtocolException {
-        this.headerParsed = false;
+
         parseHeader();
 
     }
@@ -125,7 +137,7 @@ public class BlockMergeMined {
             if (!(IsValid()))
             {
                 if(payload!= null)
-                    payload.bytes = null;
+                    payload = null;
             }
         } catch (ProtocolException e) {
             log.info("Warning: BlockMergeMined could not parse header information!");
@@ -134,9 +146,7 @@ public class BlockMergeMined {
     // default for testing
 
     protected void writeHeader(OutputStream stream) throws IOException {
-        if (IsValid()) {
-            stream.write(payload.bytes, 0, payload.bytes.length);
-        }
+
     }
     /**
      * Special handling to check if we have a valid byte array for both header
@@ -146,26 +156,9 @@ public class BlockMergeMined {
      */
 
     public byte[] bitcoinSerialize() {
-        // we have completely cached byte array.
-        if (IsValid()) {
 
-            return payload.bytes;
 
-        }
-        if(payload == null)
-            return null;
-        // At least one of the two cacheable components is invalid
-        // so fall back to stream write since we can't be sure of the length.
-
-        ByteArrayOutputStream stream = new UnsafeByteArrayOutputStream(payload.bytes.length);
-
-        try {
-            writeHeader(stream);
-        } catch (IOException e) {
-            // Cannot happen, we are serializing to a memory stream.
-        }
-
-        return stream.toByteArray();
+        return null;
     }
 
     public long getParentBlockDifficulty()
@@ -195,13 +188,8 @@ public class BlockMergeMined {
         maybeParseHeader();
         try
         {
-            byte[] myBytes = null;
-            if(payload != null)
-                myBytes = payload.bytes;
-            BlockMergeMined block = new BlockMergeMined(this.params,myBytes, 0, this.block);
+            BlockMergeMined block = new BlockMergeMined(this.params, this.payload, this.cursor, this.block);
 
-            if(block.payload != null && myBytes != null)
-                block.payload.bytes = myBytes.clone();
             return block;
         }
         catch(ProtocolException e)
@@ -217,24 +205,23 @@ public class BlockMergeMined {
 
     public String toString() {
         StringBuilder s = new StringBuilder("");
-        s.append(" block: \n");
-        s.append("   version: v");
+        s.append("      version: v");
         s.append(block.getVersion());
         s.append("\n");
-        s.append("   time: [");
-        s.append(block.time);
+        s.append("      time: [");
+        s.append(block.getTime());
         s.append("] ");
         s.append(new Date(block.getTimeSeconds() * 1000));
         s.append("\n");
-        s.append("   difficulty target (nBits): ");
+        s.append("      difficulty target (nBits): ");
         s.append(block.getDifficultyTarget());
         s.append("\n");
-        s.append("   nonce: ");
+        s.append("      nonce: ");
         s.append(block.getNonce());
         s.append("\n");
         if(hash != null)
         {
-            s.append("   hash: ");
+            s.append("      hash: ");
             s.append(block.getHashAsString());
             s.append("\n");
         }
@@ -334,17 +321,10 @@ public class BlockMergeMined {
         // enough, it's probably been done by the network.
         maybeParseHeader();
         checkProofOfWork(true);
-        checkTimestamp();
     }
 
 
-    protected void checkTimestamp() throws VerificationException {
-        maybeParseHeader();
-        // Allow injection of a fake clock to allow unit testing.
-        long currentTime = Utils.now().getTime()/1000;
-        if (block.time > currentTime + Block.ALLOWED_TIME_DRIFT)
-            throw new VerificationException("Block too far in future");
-    }
+
 
     /**
      * Verifies both the header and that the transactions hash to the merkle root.
@@ -358,7 +338,7 @@ public class BlockMergeMined {
         if (!(o instanceof BlockMergeMined))
             return false;
         BlockMergeMined other = (BlockMergeMined) o;
-        return block.time == other.block.time;
+        return block.getTimeSeconds() == other.block.getTimeSeconds();
     }
 
     /**
@@ -366,7 +346,7 @@ public class BlockMergeMined {
      * is measured in seconds since the UNIX epoch (midnight Jan 1st 1970).
      */
     public long getTimeSeconds() {
-        return block.time;
+        return block.getTimeSeconds();
     }
 
     /**
@@ -381,7 +361,7 @@ public class BlockMergeMined {
      *
      */
     public long getDifficultyTarget() {
-        return block.difficultyTarget;
+        return block.getDifficultyTarget();
     }
 
 

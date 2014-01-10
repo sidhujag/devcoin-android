@@ -59,41 +59,30 @@ public class HeadersMessage extends Message {
 
     @Override
     void parse() throws ProtocolException {
+
         long numHeaders = readVarInt();
         if (numHeaders > MAX_HEADERS)
             throw new ProtocolException("Too many headers: got " + numHeaders + " which is larger than " +
                                          MAX_HEADERS);
 
+
         blockHeaders = new ArrayList<Block>();
 
         for (int i = 0; i < numHeaders; ++i) {
-
-
-
-                //log.info("merged mining block!: {}", new BigInteger(1, blockHeader).toString(16));
-
-           // BlockMergeMined tmp = new BlockMergeMined(params, bytes,cursor+80, null);
-               // log.info("mmBlock: {}", mmBlock.toString());
-                Block newBlockHeader = new Block(this.params, bytes, false, true, 80, cursor);
-
-              //  log.info("len: {}", mmBlock.payload.bytes.length);
-                cursor += newBlockHeader.getMessageSize() + 1;
-
+            byte[] header = readBytes(81);
+                Block newBlockHeader = new Block(this.params, bytes,header, false, true, 80, cursor-1);
+                if(newBlockHeader.isMMBlock())
+                {
+                    cursor += newBlockHeader.getMMBlockSize();
+                }
                 if(!newBlockHeader.isLastByteNull())
                     throw new ProtocolException("Last byte of header must be null");
-
                 blockHeaders.add(newBlockHeader);
-
-
-
-
-
-
         }
 
-        if (log.isDebugEnabled()) {
+       if (log.isDebugEnabled()) {
             for (int i = 0; i < numHeaders; ++i) {
-                log.debug(this.blockHeaders.get(i).toString());
+                log.info(this.blockHeaders.get(i).toString());
             }
         }
     }

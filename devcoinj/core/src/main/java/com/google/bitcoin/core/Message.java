@@ -51,7 +51,8 @@ public abstract class Message implements Serializable {
 
     // The raw message bytes themselves.
     protected transient byte[] bytes;
-
+    protected transient byte[] payloadBytes;
+    protected transient int payloadCursor;
     protected transient boolean parsed = false;
     protected transient boolean recached = false;
     protected transient final boolean parseLazy;
@@ -151,7 +152,40 @@ public abstract class Message implements Serializable {
     Message(NetworkParameters params, byte[] msg, int offset, final boolean parseLazy, final boolean parseRetain, int length) throws ProtocolException {
         this(params, msg, offset, NetworkParameters.PROTOCOL_VERSION, parseLazy, parseRetain, length);
     }
+    Message(NetworkParameters params, byte[] msg, byte[] payloadBytes, int offset, final boolean parseLazy, final boolean parseRetain, int length, int payloadCursor) throws ProtocolException {
+        this.parseLazy = parseLazy;
+        this.parseRetain = parseRetain;
+        this.protocolVersion = NetworkParameters.PROTOCOL_VERSION;
+        this.params = params;
+        this.bytes = msg;
+        this.payloadBytes = payloadBytes;
+        this.payloadCursor = payloadCursor;
+        this.cursor = offset;
+        this.offset = offset;
+        this.length = length;
+        if (parseLazy) {
+            parseLite();
+        } else {
+            parseLite();
+            parse();
+            parsed = true;
+        }
 
+        if (this.length == UNKNOWN_LENGTH)
+            checkState(false, "Length field has not been set in constructor for %s after %s parse. " +
+                    "Refer to Message.parseLite() for detail of required Length field contract.",
+                    getClass().getSimpleName(), parseLazy ? "lite" : "full");
+
+        if (SELF_CHECK) {
+            selfCheck(msg, offset);
+        }
+
+        if (parseRetain || !parsed)
+            return;
+        this.bytes = null;
+
+
+    }
     // These methods handle the serialization/deserialization using the custom Bitcoin protocol.
     // It's somewhat painful to work with in Java, so some of these objects support a second 
     // serialization mechanism - the standard Java serialization system. This is used when things 

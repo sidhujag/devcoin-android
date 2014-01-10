@@ -700,8 +700,8 @@ public class Wallet implements Serializable, BlockChainListener, PeerFilterProvi
             BigInteger valueSentToMe = tx.getValueSentToMe(this);
             BigInteger valueSentFromMe = tx.getValueSentFromMe(this);
             if (log.isInfoEnabled()) {
-                log.info(String.format("Received a pending transaction %s that spends %s BTC from our own wallet," +
-                        " and sends us %s BTC", tx.getHashAsString(), Utils.bitcoinValueToFriendlyString(valueSentFromMe),
+                log.info(String.format("Received a pending transaction %s that spends %s DVC from our own wallet," +
+                        " and sends us %s DVC", tx.getHashAsString(), Utils.bitcoinValueToFriendlyString(valueSentFromMe),
                         Utils.bitcoinValueToFriendlyString(valueSentToMe)));
             }
             if (tx.getConfidence().getSource().equals(TransactionConfidence.Source.UNKNOWN)) {

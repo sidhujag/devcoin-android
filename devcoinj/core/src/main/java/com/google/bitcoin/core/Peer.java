@@ -419,9 +419,13 @@ public class Peer {
         }
 
         try {
+          //  log.info("fast Catch up: {}", fastCatchupTimeSecs);
+
             checkState(!downloadBlockBodies, toString());
             for (int i = 0; i < m.getBlockHeaders().size(); i++) {
                 Block header = m.getBlockHeaders().get(i);
+             //  log.info("i: {}, size: {}", i, m.getBlockHeaders().size());
+              //  log.info("header.getTimeSeconds(): {}", header.getTimeSeconds());
                 // Process headers until we pass the fast catchup time, or are about to catch up with the head
                 // of the chain - always process the last block as a full/filtered block to kick us out of the
                 // fast catchup mode (in which we ignore new blocks).
@@ -729,9 +733,9 @@ public class Peer {
     }
 
     private void processBlock(Block m) throws IOException {
-        if (log.isDebugEnabled()) {
+      //  if (log.isDebugEnabled()) {
             log.debug("{}: Received broadcast block {}", vAddress, m.getHashAsString());
-        }
+      //  }
         // Was this block requested by getBlock()?
         if (maybeHandleRequestedData(m)) return;
         if (blockChain == null) {

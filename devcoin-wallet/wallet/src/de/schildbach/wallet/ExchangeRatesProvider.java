@@ -131,11 +131,11 @@ public class ExchangeRatesProvider extends ContentProvider
 
 			Map<String, ExchangeRate> newExchangeRates = null;
             Map<String, ExchangeRate> newExchangeRatesDVC = null;
-            newExchangeRatesDVC = requestExchangeRates(null, VIRCUREX_URL, VIRCUREX_FIELDS);
-            if(newExchangeRatesDVC == null)
+            newExchangeRatesDVC = requestVircurexExchangeRates(null, VIRCUREX_URL, VIRCUREX_FIELDS);
+            if(newExchangeRatesDVC == null || newExchangeRatesDVC.values().toArray().length <= 0)
                 newExchangeRatesDVC = requestExchangeRates(null, CRYPTOTRADE_URL, CRYPTOTRADE_FIELDS);
 
-            if(newExchangeRatesDVC != null)
+            if(newExchangeRatesDVC != null && newExchangeRatesDVC.values().toArray().length > 0)
             {
                 exchangeRatesDVC = newExchangeRatesDVC;
 
@@ -271,23 +271,23 @@ public class ExchangeRatesProvider extends ContentProvider
 				for (final Iterator<String> i = head.keys(); i.hasNext();)
 				{
 					String currencyCode = i.next();
-                    boolean found = false;
 
-					if (!"timestamp".equals(currencyCode) && !"volume".equals(currencyCode) &&  !"vol_dvc".equals(currencyCode) &&  !"vol_btc".equals(currencyCode) && !"status".equals(currencyCode) &&  !"base".equals(currencyCode))
-					{
-						final JSONObject o = head.getJSONObject(currencyCode);
+                    boolean found = false;
+					if (!"timestamp".equals(currencyCode) && !"status".equals(currencyCode) )
+                    {
+                        final JSONObject o = head.getJSONObject(currencyCode);
+
 
 						for (final String field : fields)
 						{
+                            final String rateStr = o.optString(field, null);
 
-							final String rateStr = o.optString(field, null);
 
 							if (rateStr != null)
 							{
 								try
 								{
 									BigInteger rate = GenericUtils.toNanoCoins(rateStr, 0);
-
 									if (rate.signum() > 0)
 									{
                                         if(exchangeRatesBaseDVC != null)
@@ -347,4 +347,103 @@ public class ExchangeRatesProvider extends ContentProvider
 
 		return null;
 	}
+    private static Map<String, ExchangeRate> requestVircurexExchangeRates( ExchangeRate exchangeRatesBaseDVC, final URL url, final String... fields)
+    {
+        final long start = System.currentTimeMillis();
+
+        HttpURLConnection connection = null;
+        Reader reader = null;
+
+        try
+        {
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(Constants.HTTP_TIMEOUT_MS);
+            connection.setReadTimeout(Constants.HTTP_TIMEOUT_MS);
+            connection.connect();
+
+            final int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK)
+            {
+                reader = new InputStreamReader(new BufferedInputStream(connection.getInputStream(), 1024), Constants.UTF_8);
+                final StringBuilder content = new StringBuilder();
+                Io.copy(reader, content);
+
+                final Map<String, ExchangeRate> rates = new TreeMap<String, ExchangeRate>();
+
+                final JSONObject head = new JSONObject(content.toString());
+
+                for (final Iterator<String> i = head.keys(); i.hasNext();)
+                {
+                    String currencyCode = i.next();
+
+                    boolean found = false;
+                        for (final String field : fields)
+                        {
+                            final String rateStr = head.optString(field, null);
+
+
+                            if (rateStr != null)
+                            {
+                                try
+                                {
+                                    BigInteger rate = GenericUtils.toNanoCoins(rateStr, 0);
+                                    if (rate.signum() > 0)
+                                    {
+                                        if(exchangeRatesBaseDVC != null)
+                                        {
+
+                                            long value =  (long)(rate.floatValue() * (exchangeRatesBaseDVC.rate.floatValue()/ Utils.COIN.floatValue()));
+                                            rate = BigInteger.valueOf(value);
+
+                                        }
+                                        else
+                                        {
+                                            currencyCode = "BTC";
+                                        }
+                                        rates.put(currencyCode, new ExchangeRate(currencyCode, rate, url.getHost()));
+                                        break;
+                                    }
+                                }
+                                catch (final ArithmeticException x)
+                                {
+                                    log.warn("problem fetching exchange rate: " + currencyCode, x);
+                                }
+                            }
+                        }
+
+                }
+
+                log.info("fetched exchange rates from " + url + ", took " + (System.currentTimeMillis() - start) + " ms");
+
+                return rates;
+            }
+            else
+            {
+                log.warn("http status " + responseCode + " when fetching " + url);
+            }
+        }
+        catch (final Exception x)
+        {
+            log.warn("problem fetching exchange rates", x);
+        }
+        finally
+        {
+            if (reader != null)
+            {
+                try
+                {
+                    reader.close();
+                }
+                catch (final IOException x)
+                {
+                    // swallow
+                }
+            }
+
+            if (connection != null)
+                connection.disconnect();
+        }
+
+        return null;
+    }
 }

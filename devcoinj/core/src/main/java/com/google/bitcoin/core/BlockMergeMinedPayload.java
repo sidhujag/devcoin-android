@@ -8,40 +8,65 @@ import org.slf4j.LoggerFactory;
  */
 public class BlockMergeMinedPayload  {
     private static final Logger log = LoggerFactory.getLogger(BlockMergeMinedPayload.class);
-    public byte[] bytes;
     public int cursor;
     NetworkParameters params;
     // Merged mining fields
     //Parent Block TX
     public Transaction parentBlockCoinBaseTx;
     public Block block;
+    private byte bytes[];
     int length = 0;
     //Coinbase Link
     public Sha256Hash hashOfParentBlockHeader;
 
     //Parent Block Header
     public Block parentBlockHeader;
-    public BlockMergeMinedPayload(NetworkParameters parameters, byte[] bytePayload, int cursorStart, Block block) throws ProtocolException
+    private boolean parsed;
+    public BlockMergeMinedPayload(NetworkParameters parameters, byte[] payloadBytes, int cursorStart, Block block) throws ProtocolException
     {
+        parsed = false;
+        bytes = payloadBytes;
         this.block = block;
         this.params = parameters;
-        bytes = bytePayload;
-        cursor = cursorStart;
+        if(bytes != null)
+            parse(cursorStart);
 
     }
-
     void parse() throws ProtocolException
     {
-        int cursorStart = cursor;
+        parse(0);
+
+    }
+    void parse(int cursorStart) throws ProtocolException
+    {
+        length = 0;
+        parsed = false;
+        cursor = cursorStart;
         parseMergedMineInfo();
         length = cursor-cursorStart;
+        cursor = cursorStart;
+        if(length > 0)
+        {
+            byte[] tmp = new byte[length];
+            System.arraycopy(bytes, cursor, tmp, 0, length);
+            bytes = tmp;
+            parsed = true;
+        }
 
+    }
+    public boolean IsValid()
+    {
+        return parsed;
     }
     private void parseMergedMineInfo() throws ProtocolException
     {
-        // Parent Block Coinbase Transaction:
-        // Version
 
+        if(bytes.length <= (Block.HEADER_SIZE+1))
+        {
+            log.info("Warning: Trying to parse merged-mine info from a block that only contains regular header information");
+            return;
+        }
+        // Parent Block Coinbase Transaction:
         parentBlockCoinBaseTx = new Transaction(params, bytes, cursor, this.block, false, true, Block.UNKNOWN_LENGTH);
         parentBlockCoinBaseTx.getConfidence().setSource(TransactionConfidence.Source.NETWORK);
         cursor += parentBlockCoinBaseTx.getMessageSize();
@@ -68,20 +93,20 @@ public class BlockMergeMinedPayload  {
 
         // Branch sides bitmask
         cursor += 4;
-
+        byte[] header = readBytes(80);
         // Parent Block Header:
-        parentBlockHeader = new Block(this.params, bytes, true, true, 80, cursor);
-        cursor += parentBlockHeader.getMessageSize();
-        Sha256Hash hashOfParentBlockHeaderCalculated =   parentBlockHeader.getHash();
+        parentBlockHeader = new Block(this.params, null, header, true, true, 80, 0);
+        // reads in the block information as needed
+        Sha256Hash hashOfParentBlockHeaderCalculated =   parentBlockHeader.calculateHash();
 
         /*Note that the block_hash element is not needed as you have the full parent_block header element and can calculate the hash from that. The current Namecoin client doesn't check this field for validity, and as such some AuxPOW blocks have it little-endian, and some have it big-endian. */
         /*https://en.bitcoin.it/wiki/Merged_mining_specification*/
         if(!hashOfParentBlockHeader.equals(hashOfParentBlockHeaderCalculated))
         {
             Sha256Hash reversedHashOfParentBlockHeader =  new Sha256Hash(Utils.reverseBytes(hashOfParentBlockHeader.getBytes()));
-            if(!reversedHashOfParentBlockHeader.equals(hashOfParentBlockHeaderCalculated)){
-                throw new ProtocolException("Hash of parent block header calculated does not match hash of parent block header received in merged-mining header.");
-            }
+                if(!reversedHashOfParentBlockHeader.equals(hashOfParentBlockHeaderCalculated)){
+                    throw new ProtocolException("Hash of parent block header calculated does not match hash of parent block header received in merged-mining header.");
+                }
             else
             {
                 hashOfParentBlockHeader = reversedHashOfParentBlockHeader;
@@ -105,21 +130,41 @@ public class BlockMergeMinedPayload  {
             throw new ProtocolException(e);
         }
     }
+    private void maybeParse() {
+        if (IsValid())
+            return;
+        try {
+            parse();
+            if (!(IsValid()))
+            {
+                if(bytes!= null)
+                    bytes = null;
+            }
+        } catch (ProtocolException e) {
+            log.info("Warning: BlockMergeMinedPayload could not parse header information!");
+        }
+    }
+    public BlockMergeMinedPayload cloneAsHeader() throws ProtocolException  {
+        maybeParse();
+        BlockMergeMinedPayload newPayload = new BlockMergeMinedPayload(params, bytes, cursor, block);
+        return newPayload;
+
+    }
     public String toString() {
         StringBuilder s = new StringBuilder("");
-        s.append(" parent block coin base transaction: \n");
+        s.append("      parent block coin base transaction: \n");
         s.append(parentBlockCoinBaseTx.toString());
         s.append("\n");
         if(hashOfParentBlockHeader != null)
         {
-            s.append(" coinbase link: \n");
-            s.append("   hash of parent block header: ");
+            s.append("      coinbase link: \n");
+            s.append("          hash of parent block header: ");
             s.append(hashOfParentBlockHeader);
             s.append("\n");
         }
         if(parentBlockHeader != null)
         {
-            s.append(" parent block header: \n");
+            s.append("      parent block header: \n");
             s.append(parentBlockHeader.toString());
             s.append("\n");
         }

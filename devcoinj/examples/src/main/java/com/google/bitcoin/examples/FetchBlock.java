@@ -17,7 +17,7 @@
 package com.google.bitcoin.examples;
 
 import com.google.bitcoin.core.*;
-import com.google.bitcoin.params.TestNet3Params;
+import com.google.bitcoin.params.MainNetParams;
 import com.google.bitcoin.store.BlockStore;
 import com.google.bitcoin.store.MemoryBlockStore;
 import com.google.bitcoin.utils.BriefLogFormatter;
@@ -32,7 +32,7 @@ public class FetchBlock {
     public static void main(String[] args) throws Exception {
         BriefLogFormatter.init();
         System.out.println("Connecting to node");
-        final NetworkParameters params = TestNet3Params.get();
+        final NetworkParameters params = MainNetParams.get();
 
         BlockStore blockStore = new MemoryBlockStore(params);
         BlockChain chain = new BlockChain(params, blockStore);
@@ -43,7 +43,8 @@ public class FetchBlock {
         peerGroup.waitForPeers(1).get();
         Peer peer = peerGroup.getConnectedPeers().get(0);
 
-        Sha256Hash blockHash = new Sha256Hash(args[0]);
+       // Sha256Hash blockHash = new Sha256Hash("000000000003d9812c612985455e73501999127c324e128ef72e6ad5b931a63c");//24999
+        Sha256Hash blockHash = new Sha256Hash("f4663ea84b99f9d35c6d9e982733eebf2e33305cc1bf3691f649745dc1fb3e58");//25000
         Future<Block> future = peer.getBlock(blockHash);
         System.out.println("Waiting for node to send us the requested block: " + blockHash);
         Block block = future.get();
