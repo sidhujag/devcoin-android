@@ -37,7 +37,7 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * <p>Provides a standard implementation of a Bitcoin URI with support for the following:</p>
+ * <p>Provides a standard implementation of a Devcoin URI with support for the following:</p>
  *
  * <ul>
  * <li>URLEncoded URIs (as passed in by IE on the command line)</li>
@@ -49,8 +49,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <p>The following input forms are accepted:</p>
  *
  * <ul>
- * <li>{@code bitcoin:<address>}</li>
- * <li>{@code bitcoin:<address>?<name1>=<value1>&<name2>=<value2>} with multiple
+ * <li>{@code devcoin:<address>}</li>
+ * <li>{@code devcoin:<address>?<name1>=<value1>&<name2>=<value2>} with multiple
  * additional name/value pairs</li>
  * </ul>
  *
@@ -87,7 +87,7 @@ public class BitcoinURI {
     public static final String FIELD_AMOUNT = "amount";
     public static final String FIELD_ADDRESS = "address";
 
-    public static final String BITCOIN_SCHEME = "bitcoin";
+    public static final String BITCOIN_SCHEME = "devcoin";
     private static final String ENCODED_SPACE_CHARACTER = "%20";
     private static final String AMPERSAND_SEPARATOR = "&";
     private static final String QUESTION_MARK_SEPARATOR = "?";
@@ -128,20 +128,18 @@ public class BitcoinURI {
             throw new BitcoinURIParseException("Bad URI syntax", e);
         }
 
-        // URI is formed as  bitcoin:<address>?<query parameters>
-        // blockchain.info generates URIs of non-BIP compliant form bitcoin://address?....
-        // We support both until Ben fixes his code.
-        
-        // Remove the bitcoin scheme.
+        // URI is formed as  devcoin:<address>?<query parameters>
+
+
         // (Note: getSchemeSpecificPart() is not used as it unescapes the label and parse then fails.
-        // For instance with : bitcoin:129mVqKUmJ9uwPxKJBnNdABbuaaNfho4Ha?amount=0.06&label=Tom%20%26%20Jerry
+        // For instance with : devcoin:129mVqKUmJ9uwPxKJBnNdABbuaaNfho4Ha?amount=0.06&label=Tom%20%26%20Jerry
         // the & (%26) in Tom and Jerry gets interpreted as a separator and the label then gets parsed
         // as 'Tom ' instead of 'Tom & Jerry')
         String schemeSpecificPart;
-        if (input.startsWith("bitcoin://")) {
-            schemeSpecificPart = input.substring("bitcoin://".length());
-        } else if (input.startsWith("bitcoin:")) {
-            schemeSpecificPart = input.substring("bitcoin:".length());
+        if (input.startsWith("devcoin://")) {
+            schemeSpecificPart = input.substring("devcoin://".length());
+        } else if (input.startsWith("devcoin:")) {
+            schemeSpecificPart = input.substring("devcoin:".length());
         } else {
             throw new BitcoinURIParseException("Unsupported URI scheme: " + uri.getScheme());
         }
@@ -279,7 +277,7 @@ public class BitcoinURI {
 
     @Override
     public String toString() {
-        StringBuilder builder = new StringBuilder("BitcoinURI[");
+        StringBuilder builder = new StringBuilder("DevcoinURI[");
         boolean first = true;
         for (Map.Entry<String, Object> entry : parameterMap.entrySet()) {
             if (first) {

@@ -1166,7 +1166,7 @@ public class Peer {
             log.info("blockChainDownloadLocked({}): ignoring duplicated request", toHash.toString());
             return;
         }
-        log.debug("{}: blockChainDownloadLocked({}) current head = {}", new Object[]{toString(),
+        log.info("{}: blockChainDownloadLocked({}) current head = {}", new Object[]{toString(),
                 toHash.toString(), chainHead.getHeader().getHashAsString()});
         StoredBlock cursor = chainHead;
         for (int i = 100; cursor != null && i > 0; i--) {
