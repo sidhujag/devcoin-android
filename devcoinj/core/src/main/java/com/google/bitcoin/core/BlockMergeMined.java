@@ -16,12 +16,12 @@
 
 package com.google.bitcoin.core;
 
+import com.google.common.primitives.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.util.Date;
 
 /**
@@ -37,25 +37,19 @@ import java.util.Date;
 public class BlockMergeMined {
     private static final Logger log = LoggerFactory.getLogger(BlockMergeMined.class);
     private static final long serialVersionUID = 2738858929966035281L;
-    public static final long BLOCK_VERSION_DEFAULT = 1;
     public static final long DEVCOIN_MERGED_MINE_START_TIME = 1325974424L;
     public static final long BLOCK_VERSION_AUXPOW = (1 << 8);
     public static final long BLOCK_VERSION_CHAIN_START = (1 << 16);
-    public static final long BLOCK_VERSION_CHAIN_END = (1 << 30);
     public static final long DEVCOIN_MERGED_MINE_CHAIN_ID = 0x0004;
     public static final byte pchMergedMiningHeader[] = { (byte)0xfa, (byte)0xbe, 'm', 'm' } ;
     private transient boolean headerParsed;
     // Fields defined as part of the protocol format.
     // modifiers
 
-    private Sha256Hash prevBlockHash;
-    private Sha256Hash merkleRoot;
-    private NetworkParameters params;
-    public Block block;
-    public BlockMergeMinedPayload payload;
-    private int cursor;
-    /** Stores the hash of the block. If null, getHash() will recalculate it. */
-    private transient Sha256Hash hash;
+    private transient NetworkParameters params;
+    public transient Block block;
+    public transient BlockMergeMinedPayload payload;
+    private transient int cursor;
 
     BlockMergeMined(NetworkParameters netparams)
     {
@@ -107,15 +101,7 @@ public class BlockMergeMined {
         headerParsed = true;
     }
 
-    protected void parse() throws ProtocolException {
 
-        parseHeader();
-
-    }
-    public void maybeParse()
-    {
-        maybeParseHeader();
-    }
     /*
      * Block uses some special handling for lazy parsing and retention of cached bytes. Parsing and serializing the
      * block header and the transaction list are both non-trivial so there are good efficiency gains to be had by
@@ -185,7 +171,9 @@ public class BlockMergeMined {
 
     /** Returns a copy of the block, but without any transactions. */
     public BlockMergeMined cloneAsHeader()  {
-        maybeParseHeader();
+        //maybeParseHeader();
+        if(!IsValid())
+            return null;
         try
         {
             BlockMergeMined block = new BlockMergeMined(this.params, this.payload, this.cursor, this.block);
@@ -219,12 +207,6 @@ public class BlockMergeMined {
         s.append("      nonce: ");
         s.append(block.getNonce());
         s.append("\n");
-        if(hash != null)
-        {
-            s.append("      hash: ");
-            s.append(block.getHashAsString());
-            s.append("\n");
-        }
         if(payload != null)
         {
             s.append("\n");
@@ -233,31 +215,10 @@ public class BlockMergeMined {
         return s.toString();
     }
 
-
-    static int matchData(byte[] srcData, byte[] dataToFind) {
-        int iDataLen = srcData.length;
-        int iDataToFindLen = dataToFind.length;
-        boolean bGotData = false;
-        int iMatchDataCntr = 0;
-        for (int i = 0; i < iDataLen; i++) {
-            if (srcData[i] == dataToFind[iMatchDataCntr]) {
-                iMatchDataCntr++;
-                bGotData = true;
-            } else {
-                if (srcData[i] == dataToFind[0]) {
-                    iMatchDataCntr = 1;
-                } else {
-                    iMatchDataCntr = 0;
-                    bGotData = false;
-                }
-            }
-            if (iMatchDataCntr == iDataToFindLen) {
-                return i;
-            }
-        }
-
-        return -1;
+    public static int countOccurrences(String main, String sub) {
+        return (main.length() - main.replace(sub, "").length()) / sub.length();
     }
+
     public int getCursor()
     {
         if(payload != null)
@@ -272,13 +233,6 @@ public class BlockMergeMined {
         else
             return 0;
     }
-    protected BigInteger getDifficultyTargetAsInteger(long targetlong) throws VerificationException {
-        maybeParseHeader();
-        BigInteger target = Utils.decodeCompactBits(targetlong);
-        if (target.compareTo(BigInteger.ZERO) <= 0 || target.compareTo(params.proofOfWorkLimit) > 0)
-            throw new VerificationException("Difficulty target is bad: " + target.toString());
-        return target;
-    }
     /** Returns true if the hash of the block is OK (lower than difficulty target). */
 
     protected boolean checkProofOfWork(boolean throwException) throws VerificationException {
@@ -290,47 +244,23 @@ public class BlockMergeMined {
         {
             throw new VerificationException("Merged-mine block Aux POW parent has our chain ID: " + DEVCOIN_MERGED_MINE_CHAIN_ID);
         }
-        int headerIndex = matchData(payload.parentBlockCoinBaseTx.getInput(0).getScriptBytes(), this.pchMergedMiningHeader);
+        TransactionInput coinbaseInput = payload.parentBlockCoinBaseTx.getInput(0);
+        byte[] scriptBytes = coinbaseInput.getScriptBytes();
+        int headerIndex = Bytes.indexOf(scriptBytes, this.pchMergedMiningHeader);
         if(headerIndex > 0)
         {
-            if(!payload.parentBlockCoinBaseTx.getInput(0).isCoinBase())
+            byte[] remainingBytes = java.util.Arrays.copyOfRange(scriptBytes, headerIndex, scriptBytes.length - headerIndex);
+            headerIndex = Bytes.indexOf(remainingBytes, this.pchMergedMiningHeader);
+            if(headerIndex > 0)
+            {
+                throw new VerificationException("Multiple merged mining headers in coinbase");
+            }
+            if(!coinbaseInput.isCoinBase())
             {
                 throw new VerificationException("Parent coinbase transaction not an actual coinbase transaction!");
             }
         }
-        else
-        {
-            log.info("Warning: Merged-mine header not found in parent coinbase transaction script!");
-        }
         return true;
-    }
-
-    /**
-     * Checks the block data to ensure it follows the rules laid out in the network parameters. Specifically,
-     * throws an exception if the proof of work is invalid, or if the timestamp is too far from what it should be.
-     * This is <b>not</b> everything that is required for a block to be valid, only what is checkable independent
-     * of the chain and without a transaction index.
-     *
-     * @throws com.google.bitcoin.core.VerificationException
-     */
-    public void verifyHeader() throws VerificationException {
-        // Prove that this block is OK. It might seem that we can just ignore most of these checks given that the
-        // network is also verifying the blocks, but we cannot as it'd open us to a variety of obscure attacks.
-        //
-        // Firstly we need to ensure this block does in fact represent real work done. If the difficulty is high
-        // enough, it's probably been done by the network.
-        maybeParseHeader();
-        checkProofOfWork(true);
-    }
-
-
-
-
-    /**
-     * Verifies both the header and that the transactions hash to the merkle root.
-     */
-    public void verify() throws VerificationException {
-        verifyHeader();
     }
 
 

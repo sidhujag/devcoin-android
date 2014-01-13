@@ -81,10 +81,10 @@ public class Block extends Message {
 
     /** If null, it means this object holds only the headers. */
     List<Transaction> transactions;
-    private boolean lastByteNull;
+    private transient boolean lastByteNull;
     /** Stores the hash of the block. If null, getHash() will recalculate it. */
     private transient Sha256Hash hash;
-    private BlockMergeMined mmBlock;
+    private transient BlockMergeMined mmBlock;
     private transient boolean headerParsed;
     private transient boolean transactionsParsed;
 
@@ -197,7 +197,7 @@ public class Block extends Message {
         hash = new Sha256Hash(Utils.reverseBytes(Utils.doubleDigest(bytes, offset, cursor)));
 
 
-        if((version & BlockMergeMined.BLOCK_VERSION_AUXPOW) > 0)
+        if((version & BlockMergeMined.BLOCK_VERSION_AUXPOW) > 0 && (mmBlock == null || !mmBlock.IsValid()))
         {
             // if the block passed in is not just the headers, but header/mminfo/transactions
             // then payloadBytes is null so assume its in the bytes information (if bytes has more than just the header)
@@ -722,6 +722,7 @@ public class Block extends Message {
         }
 
         if (hash.compareTo(target) > 0) {
+
             // Proof of work check failed!
             if (throwException)
                 throw new VerificationException("Hash is higher than target: " + getHashAsString() + " vs "
@@ -729,6 +730,7 @@ public class Block extends Message {
             else
                 return false;
         }
+
         return true;
     }
 

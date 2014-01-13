@@ -47,14 +47,7 @@ public class HeadersMessage extends Message {
 
     @Override
     protected void parseLite() throws ProtocolException {
-        if (length == UNKNOWN_LENGTH) {
-            int saveCursor = cursor;
-            long numHeaders = readVarInt();
-            cursor = saveCursor;
-
-            // Each header has 80 bytes and one more byte for transactions number which is 00.
-            length = 81 * (int)numHeaders;
-        }
+        length = 0;
     }
 
     @Override
@@ -65,12 +58,12 @@ public class HeadersMessage extends Message {
             throw new ProtocolException("Too many headers: got " + numHeaders + " which is larger than " +
                                          MAX_HEADERS);
 
-
+        log.info("num headers: {}", numHeaders);
         blockHeaders = new ArrayList<Block>();
 
         for (int i = 0; i < numHeaders; ++i) {
             byte[] header = readBytes(81);
-                Block newBlockHeader = new Block(this.params, bytes,header, false, true, 80, cursor-1);
+                Block newBlockHeader = new Block(this.params, bytes,header, false, false, 80, cursor-1);
                 if(newBlockHeader.isMMBlock())
                 {
                     cursor += newBlockHeader.getMMBlockSize();
@@ -82,9 +75,10 @@ public class HeadersMessage extends Message {
 
        if (log.isDebugEnabled()) {
             for (int i = 0; i < numHeaders; ++i) {
-                log.info(this.blockHeaders.get(i).toString());
+                log.debug(this.blockHeaders.get(i).toString());
             }
         }
+        log.info("num blocks found: {}", blockHeaders.toArray().length);
     }
 
 

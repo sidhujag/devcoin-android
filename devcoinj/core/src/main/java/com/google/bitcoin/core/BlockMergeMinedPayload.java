@@ -8,20 +8,20 @@ import org.slf4j.LoggerFactory;
  */
 public class BlockMergeMinedPayload  {
     private static final Logger log = LoggerFactory.getLogger(BlockMergeMinedPayload.class);
-    public int cursor;
-    NetworkParameters params;
+    public transient int cursor;
+    transient NetworkParameters params;
     // Merged mining fields
     //Parent Block TX
-    public Transaction parentBlockCoinBaseTx;
-    public Block block;
-    private byte bytes[];
-    int length = 0;
+    public transient Transaction parentBlockCoinBaseTx;
+    public transient Block block;
+    private transient  byte bytes[];
+    public transient int length;
     //Coinbase Link
-    public Sha256Hash hashOfParentBlockHeader;
+    public transient Sha256Hash hashOfParentBlockHeader;
 
     //Parent Block Header
-    public Block parentBlockHeader;
-    private boolean parsed;
+    public transient Block parentBlockHeader;
+    private transient boolean parsed;
     public BlockMergeMinedPayload(NetworkParameters parameters, byte[] payloadBytes, int cursorStart, Block block) throws ProtocolException
     {
         parsed = false;
@@ -47,9 +47,9 @@ public class BlockMergeMinedPayload  {
         cursor = cursorStart;
         if(length > 0)
         {
-            byte[] tmp = new byte[length];
-            System.arraycopy(bytes, cursor, tmp, 0, length);
-            bytes = tmp;
+           // byte[] tmp = new byte[length];
+           // System.arraycopy(bytes, cursor, tmp, 0, length);
+           // bytes = tmp;
             parsed = true;
         }
 
@@ -67,7 +67,7 @@ public class BlockMergeMinedPayload  {
             return;
         }
         // Parent Block Coinbase Transaction:
-        parentBlockCoinBaseTx = new Transaction(params, bytes, cursor, this.block, false, true, Block.UNKNOWN_LENGTH);
+        parentBlockCoinBaseTx = new Transaction(params, bytes, cursor, this.block, false, false, Block.UNKNOWN_LENGTH);
         parentBlockCoinBaseTx.getConfidence().setSource(TransactionConfidence.Source.NETWORK);
         cursor += parentBlockCoinBaseTx.getMessageSize();
         // Coinbase Link:
@@ -95,7 +95,7 @@ public class BlockMergeMinedPayload  {
         cursor += 4;
         byte[] header = readBytes(80);
         // Parent Block Header:
-        parentBlockHeader = new Block(this.params, null, header, true, true, 80, 0);
+        parentBlockHeader = new Block(this.params, null, header, false, false, 80, 0);
         // reads in the block information as needed
         Sha256Hash hashOfParentBlockHeaderCalculated =   parentBlockHeader.calculateHash();
 

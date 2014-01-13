@@ -165,8 +165,10 @@ public class BitcoinSerializer {
      * {@link BitcoinSerializer#deserializeHeader}.
      */
     public Message deserializePayload(BitcoinPacketHeader header, InputStream in) throws ProtocolException, IOException {
+
         int readCursor = 0;
         byte[] payloadBytes = new byte[header.size];
+
         while (readCursor < payloadBytes.length - 1) {
             int bytesRead = in.read(payloadBytes, readCursor, header.size - readCursor);
             if (bytesRead == -1) {
@@ -174,6 +176,7 @@ public class BitcoinSerializer {
             }
             readCursor += bytesRead;
         }
+
 
         // Verify the checksum.
         byte[] hash;
@@ -185,8 +188,9 @@ public class BitcoinSerializer {
                     " vs " + bytesToHexString(header.checksum));
         }
 
+
         if (log.isDebugEnabled()) {
-            log.debug("Received {} byte '{}' message: {}", new Object[]{
+            log.info("Received {} byte '{}' message: {}", new Object[]{
                     header.size,
                     header.command,
                     Utils.bytesToHexString(payloadBytes)

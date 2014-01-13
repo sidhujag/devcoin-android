@@ -358,15 +358,19 @@ public abstract class AbstractBlockChain {
             // are only lightly verified: presence in a valid connecting block is taken as proof of validity. See the
             // article here for more details: http://code.google.com/p/bitcoinj/wiki/SecurityModel
             try {
+
                 block.verifyHeader();
                 if (contentsImportant)
+                {
+
                     block.verifyTransactions();
+                }
+
             } catch (VerificationException e) {
                 log.error("Failed to verify block: ", e);
                 log.error(block.getHashAsString());
                 throw e;
             }
-
             // Try linking it to a place in the currently known blocks.
             StoredBlock storedPrev = getStoredBlockInCurrentScope(block.getPrevBlockHash());
 
@@ -379,8 +383,16 @@ public abstract class AbstractBlockChain {
                 orphanBlocks.put(block.getHash(), new OrphanBlock(block, filteredTxHashList, filteredTxn));
                 return false;
             } else {
-                // It connects to somewhere on the chain. Not necessarily the top of the best known chain.
-                checkDifficultyTransitions(storedPrev, block);
+                // only check difficulty once we have atleast a few hundred blocks (full block data after checkpoints)
+                // because someone was dumb enough to change the difficulty transition algo away from bitcoin and
+                // pretty much cause an unneeded fork. The new algo needs previous few hundred blocks available to do some
+                // averaging to ease difficulty transitions (again un needed, bitcoin doesn't need this, why would Devcoin?)
+                if(contentsImportant)
+                {
+                    // we are sure here we should have a few hundred blocks previous to do the new averaging algorithm for difficulty transitions
+                    // It connects to somewhere on the chain. Not necessarily the top of the best known chain.
+                    checkDifficultyTransitions(storedPrev, block);
+                }
                 connectBlock(block, storedPrev, shouldVerifyTransactions(), filteredTxHashList, filteredTxn);
             }
 
@@ -778,6 +790,7 @@ public abstract class AbstractBlockChain {
      */
     private void checkDifficultyTransitions(StoredBlock storedPrev, Block nextBlock) throws BlockStoreException, VerificationException {
         checkState(lock.isHeldByCurrentThread());
+
         Block prev = storedPrev.getHeader();
         final int nSmoothBlock = 10700;
         final int nMedianBlock = 10800;
@@ -807,7 +820,6 @@ public abstract class AbstractBlockChain {
                         Long.toHexString(prev.getDifficultyTarget()));
             return;
         }
-
         // We need to find a block far back in the chain. It's OK that this is expensive because it only occurs every
         // two weeks after the initial block chain download.
         long now = System.currentTimeMillis();
@@ -820,14 +832,22 @@ public abstract class AbstractBlockChain {
                 throw new VerificationException(
                         "Difficulty transition point but we did not find a way back to the genesis block.");
             }
-            BigInteger diff = Utils.decodeCompactBits(cursor.getHeader().getDifficultyTarget());
+
+            BigInteger diff = cursor.getHeader().getDifficultyTargetAsInteger();
+
             blockTimes.add(cursor.getHeader().getTimeSeconds());
+
             averageDifficulty = averageDifficulty.add(diff);
+
             cursor = blockStore.get(cursor.getHeader().getPrevBlockHash());
+
         }
+
         averageDifficulty = averageDifficulty.divide(BigInteger.valueOf(targetIntervalLocal - 1));
         final int blockTimeEndIndex = blockTimes.size() - 6;
+
         Collections.sort(blockTimes);
+
         long elapsed = System.currentTimeMillis() - now;
         if (elapsed > 1500)
             log.info("Difficulty transition traversal took {}msec", elapsed);
@@ -848,8 +868,7 @@ public abstract class AbstractBlockChain {
         if (nActualTimespan > targetTimespan * 4)
             nActualTimespan = targetTimespan * 4;
 
-        BigInteger newDifficulty = Utils.decodeCompactBits(prev.getDifficultyTarget());
-
+        BigInteger newDifficulty = prev.getDifficultyTargetAsInteger();
         if(storedPrev.getHeight() > nMedianBlock)
         {
             newDifficulty = averageDifficulty;
@@ -869,7 +888,6 @@ public abstract class AbstractBlockChain {
         // The calculated difficulty is to a higher precision than received, so reduce here.
         BigInteger mask = BigInteger.valueOf(0xFFFFFFL).shiftLeft(accuracyBytes * 8);
         newDifficulty = newDifficulty.and(mask);
-
         if (newDifficulty.compareTo(receivedDifficulty) != 0)
             throw new VerificationException("Network provided difficulty bits do not match what was calculated: " +
                     receivedDifficulty.toString(16) + " vs " + newDifficulty.toString(16));
