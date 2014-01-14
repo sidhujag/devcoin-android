@@ -53,11 +53,11 @@ public abstract class NetworkParameters implements Serializable {
     public static final byte[] SATOSHI_KEY = Hex.decode("04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284");
 
     /** The string returned by getId() for the main, production network where people trade things. */
-    public static final String ID_MAINNET = "org.bitcoin.production";
+    public static final String ID_MAINNET = "org.devcoin.production";
     /** The string returned by getId() for the testnet. */
-    public static final String ID_TESTNET = "org.bitcoin.test";
+    public static final String ID_TESTNET = "org.devcoin.test";
     /** Unit test network. */
-    public static final String ID_UNITTESTNET = "com.google.bitcoin.unittest";
+    public static final String ID_UNITTESTNET = "com.google.devcoin.unittest";
 
     // TODO: Seed nodes should be here as well.
 

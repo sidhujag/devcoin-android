@@ -17,42 +17,35 @@
 package com.google.bitcoin.core;
 
 import com.google.bitcoin.params.MainNetParams;
-import com.google.bitcoin.params.TestNet3Params;
 import org.junit.Test;
 import org.spongycastle.util.encoders.Hex;
 
-import java.util.Arrays;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class AddressTest {
-    static final NetworkParameters testParams = TestNet3Params.get();
+
     static final NetworkParameters mainParams = MainNetParams.get();
 
     @Test
     public void stringification() throws Exception {
-        // Test a testnet address.
-        Address a = new Address(testParams, Hex.decode("fda79a24e50ff70ff42f7d89585da5bd19d9e5cc"));
-        assertEquals("n4eA2nbYqErp7H6jebchxAN59DmNpksexv", a.toString());
 
-        Address b = new Address(mainParams, Hex.decode("4a22c3c4cbb31e4d03b15550636762bda0baf85a"));
-        assertEquals("17kzeh4N8g49GFvdDzSf8PjaPfyoD1MndL", b.toString());
+        Address b = new Address(mainParams, Hex.decode("228a67e472ec48e31805c0bd14e8cfd204576776"));
+        assertEquals("149dn8R979naoZTLVqCsmTtx7uaBpe56dB", b.toString());
     }
     
     @Test
     public void decoding() throws Exception {
-        Address a = new Address(testParams, "n4eA2nbYqErp7H6jebchxAN59DmNpksexv");
-        assertEquals("fda79a24e50ff70ff42f7d89585da5bd19d9e5cc", Utils.bytesToHexString(a.getHash160()));
 
-        Address b = new Address(mainParams, "17kzeh4N8g49GFvdDzSf8PjaPfyoD1MndL");
-        assertEquals("4a22c3c4cbb31e4d03b15550636762bda0baf85a", Utils.bytesToHexString(b.getHash160()));
+        Address b = new Address(mainParams, "149dn8R979naoZTLVqCsmTtx7uaBpe56dB");
+        assertEquals("228a67e472ec48e31805c0bd14e8cfd204576776", Utils.bytesToHexString(b.getHash160()));
     }
     
     @Test
     public void errorPaths() {
         // Check what happens if we try and decode garbage.
         try {
-            new Address(testParams, "this is not a valid address!");
+            new Address(mainParams, "this is not a valid address!");
             fail();
         } catch (WrongNetworkException e) {
             fail();
@@ -62,32 +55,21 @@ public class AddressTest {
 
         // Check the empty case.
         try {
-            new Address(testParams, "");
-            fail();
+            new Address(mainParams, "1C7NxZ4hbt5VHwpBQyLjmQraKHTEi1SN9i");
+            //fail();
         } catch (WrongNetworkException e) {
             fail();
         } catch (AddressFormatException e) {
             // Success.
         }
 
-        // Check the case of a mismatched network.
-        try {
-            new Address(testParams, "17kzeh4N8g49GFvdDzSf8PjaPfyoD1MndL");
-            fail();
-        } catch (WrongNetworkException e) {
-            // Success.
-            assertEquals(e.verCode, MainNetParams.get().getAddressHeader());
-            assertTrue(Arrays.equals(e.acceptableVersions, TestNet3Params.get().getAcceptableAddressCodes()));
-        } catch (AddressFormatException e) {
-            fail();
-        }
+
     }
     
     @Test
     public void getNetwork() throws Exception {
-        NetworkParameters params = Address.getParametersFromAddress("17kzeh4N8g49GFvdDzSf8PjaPfyoD1MndL");
+        NetworkParameters params = Address.getParametersFromAddress("1C7NxZ4hbt5VHwpBQyLjmQraKHTEi1SN9i");
         assertEquals(MainNetParams.get().getId(), params.getId());
-        params = Address.getParametersFromAddress("n4eA2nbYqErp7H6jebchxAN59DmNpksexv");
-        assertEquals(TestNet3Params.get().getId(), params.getId());
+
     }
 }

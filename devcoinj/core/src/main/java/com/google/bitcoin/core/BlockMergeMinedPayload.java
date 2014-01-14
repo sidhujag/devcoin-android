@@ -30,11 +30,7 @@ public class BlockMergeMinedPayload  {
         this.params = parameters;
         if(bytes != null)
             parse(cursorStart);
-
-    }
-    void parse() throws ProtocolException
-    {
-        parse(0);
+        bytes = null;
 
     }
     void parse(int cursorStart) throws ProtocolException
@@ -47,9 +43,6 @@ public class BlockMergeMinedPayload  {
         cursor = cursorStart;
         if(length > 0)
         {
-           // byte[] tmp = new byte[length];
-           // System.arraycopy(bytes, cursor, tmp, 0, length);
-           // bytes = tmp;
             parsed = true;
         }
 
@@ -61,15 +54,16 @@ public class BlockMergeMinedPayload  {
     private void parseMergedMineInfo() throws ProtocolException
     {
 
-        if(bytes.length <= (Block.HEADER_SIZE+1))
+        if(bytes == null || bytes.length <= (Block.HEADER_SIZE+1))
         {
-            log.info("Warning: Trying to parse merged-mine info from a block that only contains regular header information");
+            log.info("Warning: Trying to parse merged-mine info from information passed in that doesn't include merged-mine information, skipping...");
             return;
         }
         // Parent Block Coinbase Transaction:
         parentBlockCoinBaseTx = new Transaction(params, bytes, cursor, this.block, false, false, Block.UNKNOWN_LENGTH);
         parentBlockCoinBaseTx.getConfidence().setSource(TransactionConfidence.Source.NETWORK);
         cursor += parentBlockCoinBaseTx.getMessageSize();
+
         // Coinbase Link:
         // Hash of parent block header
         hashOfParentBlockHeader = readHash();
@@ -98,15 +92,16 @@ public class BlockMergeMinedPayload  {
         parentBlockHeader = new Block(this.params, null, header, false, false, 80, 0);
         // reads in the block information as needed
         Sha256Hash hashOfParentBlockHeaderCalculated =   parentBlockHeader.calculateHash();
-
+        String str = parentBlockCoinBaseTx.toString();
+        String txHash = parentBlockCoinBaseTx.getHashAsString();
         /*Note that the block_hash element is not needed as you have the full parent_block header element and can calculate the hash from that. The current Namecoin client doesn't check this field for validity, and as such some AuxPOW blocks have it little-endian, and some have it big-endian. */
         /*https://en.bitcoin.it/wiki/Merged_mining_specification*/
         if(!hashOfParentBlockHeader.equals(hashOfParentBlockHeaderCalculated))
         {
             Sha256Hash reversedHashOfParentBlockHeader =  new Sha256Hash(Utils.reverseBytes(hashOfParentBlockHeader.getBytes()));
-                if(!reversedHashOfParentBlockHeader.equals(hashOfParentBlockHeaderCalculated)){
-                    throw new ProtocolException("Hash of parent block header calculated does not match hash of parent block header received in merged-mining header.");
-                }
+            if(!reversedHashOfParentBlockHeader.equals(hashOfParentBlockHeaderCalculated)){
+                throw new ProtocolException("Hash of parent block header calculated does not match hash of parent block header received in merged-mining header.");
+            }
             else
             {
                 hashOfParentBlockHeader = reversedHashOfParentBlockHeader;
@@ -129,26 +124,6 @@ public class BlockMergeMinedPayload  {
         } catch (ArrayIndexOutOfBoundsException e) {
             throw new ProtocolException(e);
         }
-    }
-    private void maybeParse() {
-        if (IsValid())
-            return;
-        try {
-            parse();
-            if (!(IsValid()))
-            {
-                if(bytes!= null)
-                    bytes = null;
-            }
-        } catch (ProtocolException e) {
-            log.info("Warning: BlockMergeMinedPayload could not parse header information!");
-        }
-    }
-    public BlockMergeMinedPayload cloneAsHeader() throws ProtocolException  {
-        maybeParse();
-        BlockMergeMinedPayload newPayload = new BlockMergeMinedPayload(params, bytes, cursor, block);
-        return newPayload;
-
     }
     public String toString() {
         StringBuilder s = new StringBuilder("");

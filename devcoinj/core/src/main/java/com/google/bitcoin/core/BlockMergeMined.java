@@ -20,8 +20,6 @@ import com.google.common.primitives.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Date;
 
 /**
@@ -36,46 +34,24 @@ import java.util.Date;
  */
 public class BlockMergeMined {
     private static final Logger log = LoggerFactory.getLogger(BlockMergeMined.class);
-    private static final long serialVersionUID = 2738858929966035281L;
     public static final long DEVCOIN_MERGED_MINE_START_TIME = 1325974424L;
     public static final long BLOCK_VERSION_AUXPOW = (1 << 8);
     public static final long BLOCK_VERSION_CHAIN_START = (1 << 16);
     public static final long DEVCOIN_MERGED_MINE_CHAIN_ID = 0x0004;
     public static final byte pchMergedMiningHeader[] = { (byte)0xfa, (byte)0xbe, 'm', 'm' } ;
-    private transient boolean headerParsed;
     // Fields defined as part of the protocol format.
     // modifiers
 
     private transient NetworkParameters params;
     public transient Block block;
     public transient BlockMergeMinedPayload payload;
-    private transient int cursor;
 
-    BlockMergeMined(NetworkParameters netparams)
-    {
-        payload = null;
-        params = netparams;
-        cursor = 0;
-        headerParsed = false;
-        setBlock(null);
-    }
+
     /** Constructs a block object from the Bitcoin wire format. */
     public BlockMergeMined(NetworkParameters netparams, byte[] payloadBytes, int cursor, Block block) throws ProtocolException {
-        headerParsed = false;
-        this.cursor = cursor;
         params = netparams;
         payload = new BlockMergeMinedPayload(this.params, payloadBytes, cursor, block);
         setBlock(block);
-        headerParsed = true;
-    }
-    /** Constructs a block object from the Bitcoin wire format. */
-    public BlockMergeMined(NetworkParameters netparams,BlockMergeMinedPayload payload, int cursor, Block block) throws ProtocolException {
-        headerParsed = false;
-        this.cursor = cursor;
-        params = netparams;
-        this.payload = payload.cloneAsHeader();
-        setBlock(block);
-        headerParsed = true;
     }
     private void setBlock(Block block)
     {
@@ -93,63 +69,7 @@ public class BlockMergeMined {
     }
     public boolean IsValid()
     {
-        return payload != null && payload.IsValid() && headerParsed;
-    }
-    private void parseHeader() throws ProtocolException {
-        headerParsed = false;
-        payload.parse();
-        headerParsed = true;
-    }
-
-
-    /*
-     * Block uses some special handling for lazy parsing and retention of cached bytes. Parsing and serializing the
-     * block header and the transaction list are both non-trivial so there are good efficiency gains to be had by
-     * separating them. There are many cases where a user may need to access or change one or the other but not both.
-     *
-     * With this in mind we ignore the inherited checkParse() and unCache() methods and implement a separate version
-     * of them for both header and transactions.
-     *
-     * Serializing methods are also handled in their own way. Whilst they deal with separate parts of the block structure
-     * there are some interdependencies. For example altering a tx requires invalidating the Merkle root and therefore
-     * the cached header bytes.
-     */
-
-    private void maybeParseHeader() {
-        if (IsValid())
-            return;
-        try {
-            parseHeader();
-            if (!(IsValid()))
-            {
-                if(payload!= null)
-                    payload = null;
-            }
-        } catch (ProtocolException e) {
-            log.info("Warning: BlockMergeMined could not parse header information!");
-        }
-    }
-    // default for testing
-
-    protected void writeHeader(OutputStream stream) throws IOException {
-
-    }
-    /**
-     * Special handling to check if we have a valid byte array for both header
-     * and transactions
-     *
-     * @throws java.io.IOException
-     */
-
-    public byte[] bitcoinSerialize() {
-
-
-        return null;
-    }
-
-    public long getParentBlockDifficulty()
-    {
-        return payload.parentBlockHeader.getDifficultyTarget();
+        return payload != null && payload.IsValid();
     }
     public Sha256Hash getParentBlockHash()
     {
@@ -167,25 +87,6 @@ public class BlockMergeMined {
     public long getNonce() {
         return block.getNonce();
     }
-
-
-    /** Returns a copy of the block, but without any transactions. */
-    public BlockMergeMined cloneAsHeader()  {
-        //maybeParseHeader();
-        if(!IsValid())
-            return null;
-        try
-        {
-            BlockMergeMined block = new BlockMergeMined(this.params, this.payload, this.cursor, this.block);
-
-            return block;
-        }
-        catch(ProtocolException e)
-        {
-            return null;
-        }
-    }
-
     /**
      * Returns a multi-line string containing a description of the contents of
      * the block. Use for debugging purposes only.
@@ -213,10 +114,6 @@ public class BlockMergeMined {
             s.append(payload.toString());
         }
         return s.toString();
-    }
-
-    public static int countOccurrences(String main, String sub) {
-        return (main.length() - main.replace(sub, "").length()) / sub.length();
     }
 
     public int getCursor()
@@ -285,14 +182,7 @@ public class BlockMergeMined {
     public Date getTime() {
         return new Date(getTimeSeconds()*1000);
     }
-    /**
-     * Returns the difficulty of the proof of work that this block should meet encoded <b>in compact form</b>. The {@link
-     * com.google.bitcoin.core.BlockChain} verifies that this is not too easy by looking at the length of the chain when the block is added.
-     *
-     */
-    public long getDifficultyTarget() {
-        return block.getDifficultyTarget();
-    }
+
 
 
 }

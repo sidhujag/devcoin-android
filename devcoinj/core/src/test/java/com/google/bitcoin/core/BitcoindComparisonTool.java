@@ -16,7 +16,7 @@
 
 package com.google.bitcoin.core;
 
-import com.google.bitcoin.params.RegTestParams;
+import com.google.bitcoin.params.MainNetParams;
 import com.google.bitcoin.store.BlockStoreException;
 import com.google.bitcoin.store.FullPrunedBlockStore;
 import com.google.bitcoin.store.H2FullPrunedBlockStore;
@@ -52,7 +52,7 @@ public class BitcoindComparisonTool {
         System.out.println("USAGE: bitcoinjBlockStoreLocation runLargeReorgs(1/0) [port=18444]");
         boolean runLargeReorgs = args.length > 1 && Integer.parseInt(args[1]) == 1;
 
-        params = RegTestParams.get();
+        params = MainNetParams.get();
 
         File blockFile = File.createTempFile("testBlocks", ".dat");
         blockFile.deleteOnExit();

@@ -359,10 +359,10 @@ public abstract class AbstractBlockChain {
             // article here for more details: http://code.google.com/p/bitcoinj/wiki/SecurityModel
             try {
 
-                block.verifyHeader();
+
                 if (contentsImportant)
                 {
-
+                    block.verifyHeader();
                     block.verifyTransactions();
                 }
 

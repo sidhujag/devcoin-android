@@ -1128,7 +1128,7 @@ public class Block extends Message {
      * This method is intended for test use only.
      */
     Block createNextBlockWithCoinbase(byte[] pubKey) {
-        return createNextBlock(null, null, Utils.now().getTime() / 1000, pubKey, Utils.toNanoCoins(50, 0));
+        return createNextBlock(null, null, time, pubKey, Utils.toNanoCoins(50, 0));
     }
     /**
      * Used for unit test
