@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.google</groupId>
-  <artifactId>bitcoinj-parent</artifactId>
+  <artifactId>devcoinj-parent</artifactId>
   <version>0.10.3</version>
   <packaging>pom</packaging>
 
@@ -14,8 +14,8 @@
   </modules>
 
   <name>bitcoinj Parent</name>
-  <description>Provides the common configuration for the BitCoinJ modules</description>
-  <url>http://code.google.com/p/bitcoinj</url>
+  <description>Provides the common configuration for the DevcoinJ modules</description>
+  <url>http://code.google.com/p/devcoinj</url>
 
   <ciManagement>
     <url>http://ci.bitcoinj.org/</url>
@@ -32,25 +32,25 @@
 
   <issueManagement>
     <system>Google Code</system>
-    <url>http://code.google.com/p/bitcoinj/issues/list</url>
+    <url>http://code.google.com/p/devcoinj/issues/list</url>
   </issueManagement>
 
   <mailingLists>
     <mailingList>
-      <name>bitcoinj Google Group</name>
-      <post>https://groups.google.com/forum/#!forum/bitcoinj</post>
+      <name>devcoinj Google Group</name>
+      <post>https://groups.google.com/forum/#!forum/devcoinj</post>
     </mailingList>
   </mailingLists>
 
   <distributionManagement>
     <repository>
-        <id>bitcoinj-distribution</id>
-        <url>https://distribution.bitcoinj.googlecode.com/git/releases</url>
+        <id>devcoinj-distribution</id>
+        <url>https://distribution.devcoinj.googlecode.com/git/releases</url>
     </repository>
   </distributionManagement>
 
   <scm>
-    <url>http://code.google.com/p/bitcoinj/source/checkout</url>
+    <url>http://code.google.com/p/devcoinj/source/checkout</url>
   </scm>
 
   <!-- Common build plugin configuration -->

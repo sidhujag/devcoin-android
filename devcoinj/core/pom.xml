@@ -21,14 +21,14 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.google</groupId>
-        <artifactId>bitcoinj-parent</artifactId>
+        <artifactId>devcoinj-parent</artifactId>
         <version>0.10.3</version>
     </parent>
 
-    <artifactId>bitcoinj</artifactId>
+    <artifactId>devcoinj</artifactId>
 
-    <name>bitcoinj</name>
-    <description>A Java Bitcoin library</description>
+    <name>devcoinj</name>
+    <description>A Java Devcoin library</description>
 
     <profiles>
         <profile>
