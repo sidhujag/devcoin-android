@@ -147,7 +147,7 @@
     <string name="scan_camera_problem_dialog_title">Sorry</string>
     <string name="scan_camera_problem_dialog_message">The camera has a problem. You probably need to restart the device.</string>
     <string name="input_parser_cannot_classify">Cannot classify input:\n%s</string>
-    <string name="input_parser_invalid_Devcoin_uri">Invalid Devcoin URI:\n%s</string>
+    <string name="input_parser_invalid_bitcoin_uri">Invalid Devcoin URI:\n%s</string>
     <string name="input_parser_invalid_address">Got invalid Devcoin address!\n(Mixing up Mainnet/Testnet?)</string>
     <string name="input_parser_invalid_transaction">Invalid transaction:\n%s</string>
     <string name="preferences_activity_title">Settings</string>
@@ -183,7 +183,7 @@
     <string name="report_issue_dialog_mail_intent_chooser">Send report using…</string>
     <string name="about_title">About</string>
     <string name="about_license_title">License</string>
-    <string name="about_credits_Devcoinj_title">This app is using Devcoinj %s</string>
+    <string name="about_credits_bitcoinj_title">This app is using Devcoinj %s</string>
     <string name="about_credits_zxing_title">"This app is using 'zxing'"</string>
     <string name="about_credits_icon_title">"This app is using an icon by 'bitboy'"</string>
     <string name="about_community_googleplus_title">Google+ Community</string>

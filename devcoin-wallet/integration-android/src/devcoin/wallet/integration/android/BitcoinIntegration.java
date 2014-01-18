@@ -174,7 +174,7 @@ public final class BitcoinIntegration
 		Toast.makeText(context, "No Devcoin application found.\nPlease install Devcoin Wallet.", Toast.LENGTH_LONG).show();
 
 		final Intent marketIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=devcoin.wallet"));
-		final Intent binaryIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://code.google.com/p/bitcoin-wallet/downloads/list"));
+		final Intent binaryIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://sourceforge.net/projects/devcoin/files/devcoinj"));
 
 		final PackageManager pm = context.getPackageManager();
 		if (pm.resolveActivity(marketIntent, 0) != null)

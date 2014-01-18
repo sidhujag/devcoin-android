@@ -6,7 +6,7 @@
 			android:key="about_version"
 			android:title="Version" />
 		<Preference
-			android:summary="© 2011-2014, Andreas Schildbach"
+			android:summary="© 2011-2014, Jag Sidhu"
 			android:title="Copyright" />
 		<Preference
 			android:key="about_license"
@@ -28,7 +28,7 @@
 			android:title="@string/about_author_twitter_title" />
 		<Preference
 			android:key="about_author_googleplus"
-			android:summary="+Andreas Schildbach"
+			android:summary="+Jag Sidhu"
 			android:title="@string/about_author_googleplus_title" />
 		<Preference
 			android:key="about_market_publisher"
