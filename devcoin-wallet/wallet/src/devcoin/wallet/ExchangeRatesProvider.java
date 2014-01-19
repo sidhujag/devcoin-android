@@ -143,19 +143,23 @@ public class ExchangeRatesProvider extends ContentProvider
 
                 if(DVCRate != null)
                 {
+
                     newExchangeRates = requestExchangeRates(DVCRate, BITCOINAVERAGE_URL, BITCOINAVERAGE_FIELDS);
                     if (newExchangeRates == null)
                         newExchangeRates = requestExchangeRates(DVCRate, BITCOINCHARTS_URL, BITCOINCHARTS_FIELDS);
                     if (newExchangeRates == null)
                         newExchangeRates = requestExchangeRates(DVCRate, BLOCKCHAININFO_URL, BLOCKCHAININFO_FIELDS);
+
                 }
             }
 
 
 			if (newExchangeRates != null)
 			{
+                ExchangeRate DVCRate = (ExchangeRate)(exchangeRatesDVC.values().toArray())[0];
 				exchangeRates = newExchangeRates;
-				lastUpdated = now;
+                exchangeRates.put("BTC", DVCRate);
+                lastUpdated = now;
 			}
 		}
 
@@ -163,10 +167,11 @@ public class ExchangeRatesProvider extends ContentProvider
 			return null;
 
 		final MatrixCursor cursor = new MatrixCursor(new String[] { BaseColumns._ID, KEY_CURRENCY_CODE, KEY_RATE, KEY_SOURCE });
-        ExchangeRate DVCRate = (ExchangeRate)(exchangeRatesDVC.values().toArray())[0];
-        cursor.newRow().add("BTC".hashCode()).add("BTC").add(DVCRate.rate.longValue()).add(DVCRate.source);
+
+
 		if (selection == null)
 		{
+
 			for (final Map.Entry<String, ExchangeRate> entry : exchangeRates.entrySet())
 			{
 				final ExchangeRate rate = entry.getValue();
