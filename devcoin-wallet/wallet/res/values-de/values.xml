@@ -2,10 +2,10 @@
 <resources>
 
 	<string-array name="preferences_precision_labels">
-		<item>BTC, 8 Dezimalen</item>
-		<item>BTC, 6 Dezimalen</item>
-		<item>BTC, 4 Dezimalen</item>
-		<item>mBTC, 2 Dezimalen</item>
+		<item>DVC, 8 Dezimalen</item>
+		<item>DVC, 6 Dezimalen</item>
+		<item>DVC, 4 Dezimalen</item>
+		<item>mDVC, 2 Dezimalen</item>
 	</string-array>
 
 </resources>
