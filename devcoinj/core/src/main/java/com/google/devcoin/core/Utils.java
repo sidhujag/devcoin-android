@@ -70,7 +70,7 @@ public class Utils {
      * The term nanocoin is very misleading, though, because there are only 100 million
      * of them in a coin (whereas one would expect 1 billion).
      */
-    public static final BigInteger CENT = new BigInteger("500000000", 10);
+    public static final BigInteger CENT = new BigInteger("1000000", 10);
 
     /**
      * Convert an amount expressed in the way humans are used to into nanocoins.
