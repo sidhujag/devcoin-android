@@ -208,7 +208,7 @@ public class TransactionOutput extends ChildMessage implements Serializable {
      * {@link Transaction#MIN_NONDUST_OUTPUT}.
      */
     public BigInteger getMinNonDustValue() {
-        return getMinNonDustValue(Transaction.REFERENCE_DEFAULT_MIN_TX_FEE.multiply(BigInteger.valueOf(3)));
+        return getMinNonDustValue(BigInteger.valueOf(10000).multiply(BigInteger.valueOf(3)));
     }
 
     /**
